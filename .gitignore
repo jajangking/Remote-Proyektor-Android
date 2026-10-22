@@ -1,0 +1,17 @@
+# artefak build & toolchain (terlalu besar untuk repo)
+build/
+sysroot32/
+*.o
+*.class
+*.apk
+*.dex
+*.tmp
+
+# file sesi debug
+*.raw
+*.png
+t0
+t1
+t2
+_a
+_b

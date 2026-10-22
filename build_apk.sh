@@ -6,8 +6,9 @@ SDK=build/android.jar
 OUT=build/out
 rm -rf "$OUT"; mkdir -p "$OUT"
 
-echo "[1/6] aapt2 link"
-aapt2 link -o "$OUT/base.apk" -I "$SDK" --manifest AndroidManifest.xml --java "$OUT/gen" --min-sdk-version 21 --target-sdk-version 30
+echo "[1/6] aapt2 compile + link"
+aapt2 compile --dir res -o build/res.zip
+aapt2 link -o "$OUT/base.apk" -I "$SDK" --manifest AndroidManifest.xml --java "$OUT/gen" --min-sdk-version 21 --target-sdk-version 30 build/res.zip
 
 echo "[2/6] javac"
 mkdir -p "$OUT/classes"

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- latar rounded -->
+    <path
+        android:fillColor="#0D47A1"
+        android:pathData="M16,0 H92 A16,16 0 0 1 108,16 V92 A16,16 0 0 1 92,108 H16 A16,16 0 0 1 0,92 V16 A16,16 0 0 1 16,0 Z"/>
+
+    <!-- badan remote -->
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M47,10 H61 A13,13 0 0 1 74,23 V85 A13,13 0 0 1 61,98 H47 A13,13 0 0 1 34,85 V23 A13,13 0 0 1 47,10 Z"/>
+
+    <!-- tombol power -->
+    <path
+        android:fillColor="#EF5350"
+        android:pathData="M50,18 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0"/>
+
+    <!-- D-pad -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M41,34 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"/>
+    <path
+        android:fillColor="#F5F5F5"
+        android:pathData="M49.5,34 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0"/>
+
+    <!-- tombol-tombol bawah -->
+    <path android:fillColor="#90CAF9" android:pathData="M39.5,58 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0"/>
+    <path android:fillColor="#90CAF9" android:pathData="M59.5,58 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0"/>
+    <path android:fillColor="#90CAF9" android:pathData="M39.5,71 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0"/>
+    <path android:fillColor="#90CAF9" android:pathData="M59.5,71 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0"/>
+    <path android:fillColor="#1565C0" android:pathData="M48,84 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0"/>
+</vector>

@@ -1,5 +1,7 @@
 # Remote Proyektor Android
 
+**📲 [Unduh APK rilis di halaman Releases](https://github.com/jajangking/Remote-Proyektor-Android/releases/latest)**
+
 Remote control proyektor Android TV (tes di ADT-3, Android 11) dari HP lewat **WiFi** —
 untuk kasus remote fisik hilang. Terdiri dari:
 

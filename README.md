@@ -5,7 +5,8 @@
 Remote control proyektor Android TV (tes di ADT-3, Android 11) dari HP lewat **WiFi** —
 untuk kasus remote fisik hilang. Terdiri dari:
 
-- **APK `tvremote.apk`** (HP): touchpad ala mouse, D-pad 8 arah, keyboard, tombol lengkap.
+- **APK `tvremote.apk`** (HP): touchpad ala mouse, D-pad 8 arah, keyboard, volume &
+  media (vol ±, mute, play/pause, next/prev), tombol lengkap.
 - **2 daemon kecil** (proyektor, jalan tanpa root):
   - port **9877** — shell: eksekusi perintah (`input keyevent`, `input text`, dll).
   - port **9878** — pointer virtual via `/dev/uhid`: kursor mouse, klik, scroll
@@ -25,6 +26,14 @@ App bisa memasang daemon sendiri ke proyektor bersih yang adb TCP-nya aktif
 (`service.adb.tcp.port=5555`): handshake auth → push 3 file → install → kedua port
 langsung LISTEN. Tanpa Termux, tanpa ketik manual. Detail & riwayat diagnosanya ada di
 [HANDOFF.md](HANDOFF.md).
+
+## Riwayat versi
+
+- **v1.0.3** — section **Volume & Media** di layar utama; fix field port 5555 tersisa
+  saat pindah ke mode Service (dulu app "tersambung" ke adbd, bukan daemon).
+- **v1.0.1** — koneksi **ADB langsung tanpa Termux**: signature token mentah
+  (bukan `SHA1(token)`), checksum sum, fallback `AUTH RSAPUBLICKEY`.
+- **v1.0.0** — rilis resmi pertama.
 
 ## Struktur
 

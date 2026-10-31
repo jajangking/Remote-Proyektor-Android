@@ -347,6 +347,14 @@ adb -s 10.80.108.28:5555 shell "settings put system pointer_location 1"
     entri stale (device offline di server bikin koneksi host ditutup prematur).
 17. **Kill daemon**: jangan `pgrep -f` pattern yang ada di cmdline shell-mu
     sendiri — cocokkan argv[0] via `/proc/$p/cmdline`.
+18. **Mode Service tapi port 5555**: field port bisa tersisa dari sesi mode ADB →
+    app "Terhubung" tapi nyambung ke adbd (bukan daemon), perintah hilang.
+    Sekarang intent `mode=tcp/service` memaksa port 9877 dan `onCreate` menolak
+    port 5555 untuk mode Service.
+19. **WiFi proyektor saat boot**: kalau `settings get global wifi_on` = 0 sebelum
+    reboot, WiFi TIDAK nyala sampai app vendor (`com.twd.setting`) menyalakannya
+    ~2 menit setelah boot. Dengan `wifi_on=1`, SystemUI menyalakan WiFi ~7 dtk
+    setelah WifiService start → adb 5555 hidup ~26 dtk setelah reboot.
 
 ---
 

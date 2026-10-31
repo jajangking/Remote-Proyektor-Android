@@ -89,6 +89,9 @@ public class MainActivity extends Activity {
         if (!lastHost.isEmpty()) etHost.setText(lastHost);
         String lastPort = sp.getString("port", "");
         if (!lastPort.isEmpty()) etPort.setText(lastPort);
+        // port 5555 = ADB; kalau tersisa dari sesi mode ADB sedangkan mode awal
+        // Service (default), jangan dipakai — app akan "tersambung" ke adbd, bukan daemon
+        if ("5555".equals(etPort.getText().toString().trim())) etPort.setText("9877");
         setStatus("Belum terhubung", Color.RED);
         detectLocalIp();
         handleIntent();   // extras intent (otomasi) menimpa penyimpanan
@@ -113,8 +116,11 @@ public class MainActivity extends Activity {
         String p = i.getStringExtra("port");
         if (p != null && !p.isEmpty()) etPort.setText(p);
         String m = i.getStringExtra("mode");
-        if ("adb".equalsIgnoreCase(m)) rg.check(rAdb.getId());
-        else if ("service".equalsIgnoreCase(m) || "tcp".equalsIgnoreCase(m)) rg.check(rTcp.getId());
+        if ("adb".equalsIgnoreCase(m)) { rg.check(rAdb.getId()); etPort.setText("5555"); }
+        else if ("service".equalsIgnoreCase(m) || "tcp".equalsIgnoreCase(m)) {
+            rg.check(rTcp.getId());
+            etPort.setText("9877");
+        }
         if (i.getBooleanExtra("autoconnect", false))
             ui.postDelayed(() -> btnConnect.performClick(), 700);
     }
@@ -302,7 +308,7 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {}
         connected = false;
-        ui.post(() -> setStatus("Koneksi terputus", Color.RED));
+        ui.post(() -> { setStatus("Koneksi terputus", Color.RED); btnConnect.setText("Hubungkan"); });
     }
 
     /** Kirim perintah shell ke proyektor (dipanggil dari UI thread). */
@@ -618,6 +624,24 @@ public class MainActivity extends Activity {
         }
         mrow.setPadding(0, dp(6), 0, 0);
         root.addView(mrow);
+
+        // ---- volume & media (paling sering dipakai, jangan disembunyikan) ----
+        ViewGroup vmSec = addCollapsible(root, "Volume & Media", true);
+        LinearLayout vmRow = new LinearLayout(this);
+        vmRow.setOrientation(LinearLayout.HORIZONTAL);
+        String[] vmLbl = {"Vol −", "Vol +", "Mute", "⏮", "▶‖", "⏭"};
+        int[] vmKey = {KC_VOLDOWN, KC_VOLUP, KC_MUTE, KC_PREV, KC_PLAYPAUSE, KC_NEXT};
+        for (int i = 0; i < vmLbl.length; i++) {
+            Button b = mkBtn(vmLbl[i], vmKey[i]);
+            b.setTextSize(12);
+            b.setPadding(dp(2), dp(10), dp(2), dp(10));
+            LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            bl.setMargins(dp(3), 0, dp(3), 0);
+            b.setLayoutParams(bl);
+            vmRow.addView(b);
+        }
+        vmSec.addView(vmRow);
 
         // ---- keyboard ----
         ViewGroup kbSec = addCollapsible(root, "Keyboard", true);

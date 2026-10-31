@@ -113,6 +113,9 @@ selama tidak factory reset).
 
 ### 2.7 ✅ Auto-setup E2E TERBUKTI (2026-10-22) — jalur relay server adb lokal
 
+> **KOREKSI 2026-10-31 — baca 2.13. Diagnosis "kunci misterius K" di bawah ini SALAH.**
+> Kunci app memang ter-authorize; jalur langsung bisa jalan setelah 2 bug app difix.
+
 **Akar bug handshake ADB (TERBUKTI via proxy MITM di 127.0.0.1:5556):**
 signature pakai `~/.android/adbkey` **valid secara kriptografi tetapi DITOLAK
 adbd** — kunci itu tidak ada di authorized-keys (framework-side) proyektor.
@@ -166,6 +169,62 @@ di-log; dulu `catch (Exception ignored)` menelan semuanya).
 Hanya 1 koneksi shell pada satu waktu — kalau Termux/PC masih megang `adb shell`,
 app akan rebutan. Koneksi pertama ke adbd kadang aneh (AUTH/transport) →
 putuskan semua entri lama (`adb disconnect`) sebelum tes E2E.
+
+### 2.13 ✅ KOREKSI 2026-10-31: auth langsung BISA — 2 bug app + insiden adb mati
+
+- Kunci app/Termux memang authorized: `/data/misc/adb/adb_keys` berisi kunci yang
+  sama dengan `~/.android/adbkey.pub` (beda 1 byte newline). Klaim "kunci
+  misterius K" di 2.7 salah.
+- **BUG UTAMA (ketemu 2026-10-31 siang, lewat proxy + verifikasi matematis):**
+  adb **tidak meng-hash token**. Signature = PKCS#1 v1.5 dengan
+  `DigestInfo(SHA1-OID) + token MENTAH`:
+  `30 21 30 09 06 05 2b 0e 03 02 1a 05 00 04 14` + 20 byte token, lalu RSA
+  private op. App memakai `SHA1withRSA` (token di-hash dulu) → signature selalu
+  ditolak adbd (adbd kirim token baru). Terbukti: signature hasil skema baru
+  **byte-identik** dengan signature adb CLI untuk token yang sama.
+  Fix: `AdbClient.signToken()` pakai `NONEwithRSA` (fallback
+  `Cipher RSA/ECB/PKCS1Padding` + private key).
+- Bug lain (juga difix di 1.0.1):
+  1. `AdbClient.writePacket` pakai **CRC32**, padahal protokol adb pakai
+     **jumlah byte (sum)** → packet dibuang diam-diam oleh adbd.
+  2. Setelah signature ditolak: token berikutnya → kirim **AUTH RSAPUBLICKEY
+     (arg0=3)** payload `<base64-blob> <user>` (flag `sentSig`), bukan
+     signature lagi.
+  3. Timeout handshake 5 dtk → **20 dtk**.
+- **Hasil E2E 2026-10-31 12:09:** app konek **langsung tanpa Termux** →
+  `CNXN diterima — handshake sukses` → `ensureDaemons` (`needPush=false`,
+  9877/9878 sehat).
+- **Dialog otorisasi:** koneksi pertama setelah recovery tetap memunculkan
+  **"Allow USB debugging?"** di layar proyektor → harus di-ACC manual (centang
+  "Always allow from this computer"). Setelah itu koneksi berikutnya langsung
+  lolos tanpa dialog.
+- **Performa auth:** adbd proyektor bisa lambat membalas; kalau koneksi
+  ditinggal timeout, adbd bisa "wedged" (TCP diterima, tak ada token) sampai
+  koneksi lama benar-benar hilang. Solusi praktis: putuskan semua koneksi lain
+  (`adb disconnect`), tunggu beberapa detik, baru sambungkan klien berikutnya.
+
+**⚠️ INSIDEN 2026-10-31 (jangan diulang):** untuk me-restart adbd yang wedged,
+dijalankan `settings put global adb_enabled 0` lewat shell daemon 9877.
+Akibatnya adbd mati **dan membunuh semua shell child** (daemon 9877/9878 ikut
+mati). ADB jadi OFF (setting persisten), `service.adb.tcp.port` non-persist.
+Yang masih hidup: port 5000/7000/7100/7700 (AirPlay/streaming); mDNS cuma
+`_airplay`/`_raop` → tidak ada remote-service untuk recovery.
+
+**Recovery (SUDAH dilakukan 2026-10-31):**
+1. Colok keyboard/mouse USB ke proyektor (atau remote TV via HDMI-CEC).
+2. Settings → Device Preferences → About → tap **Build** 7× → Developer options.
+3. Nyalakan **Wireless debugging** (kirim IP:port + kode pairing) atau
+   **ADB over network** (langsung port 5555).
+4. Setelah dapat shell:
+   `setprop persist.adb.tcp.port 5555; setprop service.adb.tcp.port 5555`
+   lalu jalankan app mode ADB → auto-setup menghidupkan daemon lagi.
+
+Hasil 2026-10-31: user menyalakan **ADB over network** → port 5555 terbuka →
+`persist.adb.tcp.port=5555` terset (tahan reboot) → daemon 9877/9878 dijalankan
+ulang → user ACC dialog di proyektor → app konek langsung. Selesai.
+
+**JANGAN** pernah `settings put global adb_enabled 0` lewat daemon: itu mematikan
+satu-satunya jalur recovery jarak jauh.
 
 ### 2.12 Pemetaan bug "app terhubung tapi file tidak ter-push" (arsip diagnosis)
 

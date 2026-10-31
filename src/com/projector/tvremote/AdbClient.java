@@ -15,7 +15,7 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
-import java.util.zip.CRC32;
+import javax.crypto.Cipher;
 
 /**
  * Klien ADB protokol mentah (tanpa binary adb). Dipakai untuk mode "ADB over WiFi".
@@ -57,11 +57,40 @@ public class AdbClient {
         pubKeyBlob = (pubKeyLine.trim() + "\n").getBytes("UTF-8");
     }
 
+    /**
+     * Tanda tangan token AUTH ala adb: BUKAN SHA1(token), melainkan
+     * DigestInfo(SHA1) + token MENTAH (token dianggap sebagai nilai hash).
+     * Terverifikasi byte-identik dengan signature adb CLI (lihat HANDOFF 2.13).
+     */
+    private byte[] signToken(byte[] token) throws Exception {
+        final byte[] sha1DigestInfo = {
+            0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
+            0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
+        };
+        byte[] data = new byte[sha1DigestInfo.length + token.length];
+        System.arraycopy(sha1DigestInfo, 0, data, 0, sha1DigestInfo.length);
+        System.arraycopy(token, 0, data, sha1DigestInfo.length, token.length);
+        try {
+            // NONEwithRSA = PKCS#1 v1.5 atas data apa adanya (tanpa hashing)
+            Signature s = Signature.getInstance("NONEwithRSA");
+            s.initSign(privKey);
+            s.update(data);
+            return s.sign();
+        } catch (Exception e) {
+            // cadangan: enkripsi privat PKCS#1 v1.5 (block type 1) = signature
+            Cipher c = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+            c.init(Cipher.ENCRYPT_MODE, privKey);
+            return c.doFinal(data);
+        }
+    }
+
     public void connect(String host, int port) throws Exception {
         sock = new Socket();
         sock.connect(new InetSocketAddress(host, port), 6000);
         sock.setTcpNoDelay(true);
-        sock.setSoTimeout(5000);   // cegah gantung kalau adbd diam di tengah handshake
+        // adbd proyektor bisa butuh >5 detik untuk membalas AUTH/pubkey, jadi beri
+        // waktu lega; setelah shell terbuka timeout dimatikan (lihat bawah).
+        sock.setSoTimeout(20000);
         in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
         out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
 
@@ -69,19 +98,20 @@ public class AdbClient {
         android.util.Log.i("AdbHs", "tx CNXN -> " + host + ":" + port);
 
         boolean ok = false;
+        boolean sentSig = false;   // signature hanya dicoba sekali; token kedua -> kirim publik
         try {
         for (int i = 0; i < 12 && !ok; i++) {
             Pkt p = readPacket();
             android.util.Log.i("AdbHs", "rx #" + i + " cmd=0x" + Integer.toHexString(p.cmd)
                     + " arg0=" + p.arg0 + " len=" + (p.data == null ? 0 : p.data.length));
             if (p.cmd == A_CNXN) { ok = true; break; }
-            if (p.cmd == A_AUTH && p.arg0 == AUTH_TOKEN && privKey != null) {
-                Signature s = Signature.getInstance("SHA1withRSA");
-                s.initSign(privKey);
-                s.update(p.data);
-                writePacket(A_AUTH, AUTH_SIGNATURE, 0, s.sign());
+            if (p.cmd == A_AUTH && p.arg0 == AUTH_TOKEN && privKey != null && !sentSig) {
+                writePacket(A_AUTH, AUTH_SIGNATURE, 0, signToken(p.data));
+                sentSig = true;
                 android.util.Log.i("AdbHs", "tx AUTH SIGNATURE (#" + i + ")");
             } else if (p.cmd == A_AUTH && pubKeyBlob != null) {
+                // signature ditolak -> proyektor minta identitas: kirim public key
+                // (tanpa langkah ini handshake selalu gagal meski kunci sudah authorized)
                 writePacket(A_AUTH, AUTH_RSAPUBLICKEY, 0, pubKeyBlob);
                 android.util.Log.i("AdbHs", "tx AUTH PUBKEY (#" + i + ")");
             } else {
@@ -313,11 +343,13 @@ public class AdbClient {
 
     private void writePacket(int cmd, int arg0, int arg1, byte[] data) throws IOException {
         if (data == null) data = new byte[0];
-        CRC32 crc = new CRC32();
-        crc.update(data);
+        // protokol adb: field checksum = JUMLAH byte (bukan CRC32!) — kalau salah,
+        // adbd diam-diam membuang packet (AUTH signature/pubkey tak pernah diproses)
+        int sum = 0;
+        for (byte x : data) sum += (x & 0xff);
         ByteBuffer b = ByteBuffer.allocate(24 + data.length).order(ByteOrder.LITTLE_ENDIAN);
         b.putInt(cmd).putInt(arg0).putInt(arg1).putInt(data.length);
-        b.putInt((int) crc.getValue());
+        b.putInt(sum);
         b.putInt(cmd ^ 0xffffffff);
         b.put(data);
         synchronized (wlock) {
